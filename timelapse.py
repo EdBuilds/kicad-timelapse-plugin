@@ -1,38 +1,61 @@
 import pcbnew
 import os
+import re
+import shutil
+from svg_processor import SvgProcessor
 
 layers = [
     {
         'layer': pcbnew.B_SilkS,
+        'name' :'B_SilkS',
         'color': '#CC00CC',
         'alpha': 0.8,
     },
     {
         'layer': pcbnew.B_Cu,
+        'name' : 'B_Cu',
         'color': '#33EE33',
         'alpha': 0.5,
     },
     {
         'layer': pcbnew.F_Cu,
+        'name' : 'F_Cu',
         'color': '#CC0000',
         'alpha': 0.5,
     },
     {
         'layer': pcbnew.F_SilkS,
+        'name' : 'F_SilkS',
         'color': '#00CCCC',
         'alpha': 0.8,
     },
     {
         'layer': pcbnew.Cmts_User,
+        'name' : 'Cmts_User',
         'color': '#333333',
         'alpha': 0.8,
     },
     {
         'layer': pcbnew.Edge_Cuts,
+        'name' : 'Edge_Cuts',
         'color': '#3333CC',
         'alpha': 0.8,
     },
 ]
+
+
+def extract_biggest_number(files):
+    numbers=[]
+    regex = re.compile(r'\d+')
+    for sFile in files:
+        print("found file:"+sFile)
+        extracted_nums=regex.findall(sFile)
+        if extracted_nums:
+            print("Recognised num:"+str(extracted_nums))
+            numbers.append(extracted_nums[0])
+    return int(max(numbers)) if numbers else 0
+
+
 class SimplePlugin(pcbnew.ActionPlugin):
     def defaults(self):
         self.name = "Timelapse recorder"
@@ -52,6 +75,8 @@ class SimplePlugin(pcbnew.ActionPlugin):
             os.mkdir(timelapse_folder_path)
             print('Timelapse folder created')
 
+        timelapse_files=os.listdir(timelapse_folder_path)
+        timelapse_number=extract_biggest_number(timelapse_files)
         pc = pcbnew.PLOT_CONTROLLER(board)
         po = pc.GetPlotOptions()
         po.SetOutputDirectory(timelapse_folder_path)
@@ -62,13 +87,42 @@ class SimplePlugin(pcbnew.ActionPlugin):
         po.SetMirror(False)
         po.SetExcludeEdgeLayer(True)
         # Set current layer
-        pc.SetLayer(pcbnew.F_Cu)
 
         # Plot single layer to file
-        pc.OpenPlotfile("front_copper", pcbnew.PLOT_FORMAT_SVG, "front_copper")
-        print("Plotting to " + pc.GetPlotFileName())
-        pc.PlotLayer()
-        pc.ClosePlot()
+
+        timelapse_number += 1
+        processed_svg_files = []
+        for layer in layers:
+            pc.SetLayer(layer['layer'])
+            layer['layer']
+            pc.OpenPlotfile('-'+layer['name']+'-'+str(timelapse_number).zfill(4), pcbnew.PLOT_FORMAT_SVG, layer['name'])
+            print("Plotting to " + pc.GetPlotFileName())
+            pc.PlotLayer()
+            pc.ClosePlot()
+            output_filename = pc.GetPlotFileName()
+            processor = SvgProcessor(output_filename)
+
+            def colorize(original):
+                if original.lower() == '#000000':
+                    return layer['color']
+                return original
+            processor.apply_color_transform(colorize)
+            processor.wrap_with_group({
+                'opacity': str(layer['alpha']),
+            })
+
+            output_filename2 = os.path.join(timelapse_folder_path, 'processed-' + os.path.basename(output_filename))
+            processor.write(output_filename2)
+            processed_svg_files.append((output_filename2, processor))
+            os.remove(output_filename)
+
+        final_svg = os.path.join(timelapse_folder_path, board_filename_noex+'-'+str(timelapse_number).zfill(4)+'.svg')
+        shutil.copyfile(processed_svg_files[0][0], final_svg)
+        output_processor = SvgProcessor(final_svg)
+        for processed_svg_file, processor in processed_svg_files:
+            output_processor.import_groups(processor)
+            os.remove(processed_svg_file)
+        output_processor.write(final_svg)
 
 
 SimplePlugin().register() # Instantiate and register to Pcbnew
