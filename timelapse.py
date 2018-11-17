@@ -2,7 +2,11 @@ import pcbnew
 import os
 import re
 import shutil
+from timer import RepeatedTimer
 from svg_processor import SvgProcessor
+import sched, time
+
+capture_interval=10
 
 layers = [
     {
@@ -62,7 +66,8 @@ class SimplePlugin(pcbnew.ActionPlugin):
         self.category = "A descriptive category name"
         self.description = "A description of the plugin and what it does"
 
-    def Run(self):
+    def screenshot(self):
+        print("Taking a screenshot")
         board = pcbnew.GetBoard()
         board_path=board.GetFileName()
         board_filename=os.path.basename(board_path)
@@ -96,12 +101,10 @@ class SimplePlugin(pcbnew.ActionPlugin):
             pc.SetLayer(layer['layer'])
             layer['layer']
             pc.OpenPlotfile('-'+layer['name']+'-'+str(timelapse_number).zfill(4), pcbnew.PLOT_FORMAT_SVG, layer['name'])
-            print("Plotting to " + pc.GetPlotFileName())
             pc.PlotLayer()
             pc.ClosePlot()
             output_filename = pc.GetPlotFileName()
             processor = SvgProcessor(output_filename)
-
             def colorize(original):
                 if original.lower() == '#000000':
                     return layer['color']
@@ -123,6 +126,10 @@ class SimplePlugin(pcbnew.ActionPlugin):
             output_processor.import_groups(processor)
             os.remove(processed_svg_file)
         output_processor.write(final_svg)
+
+
+    def Run(self):
+        rt = RepeatedTimer(1, self.screenshot)
 
 
 SimplePlugin().register() # Instantiate and register to Pcbnew
