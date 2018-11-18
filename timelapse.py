@@ -2,10 +2,11 @@ import pcbnew
 import os
 import re
 import shutil
+import sys
 from timer import RepeatedTimer
 from svg_processor import SvgProcessor
 import sched, time
-
+sys.stdout = open('logfile','w')
 capture_interval=10
 
 layers = [
@@ -47,6 +48,11 @@ layers = [
     },
 ]
 
+def static_var(varname, value):
+    def decorate(func):
+        setattr(func, varname, value)
+        return func
+    return decorate
 
 def extract_biggest_number(files):
     numbers=[]
@@ -61,6 +67,8 @@ def extract_biggest_number(files):
 
 
 class SimplePlugin(pcbnew.ActionPlugin):
+    def __Init__(self):
+        self.board=pcbnew.GetBoard()
     def defaults(self):
         self.name = "Timelapse recorder"
         self.category = "A descriptive category name"
@@ -68,8 +76,8 @@ class SimplePlugin(pcbnew.ActionPlugin):
 
     def screenshot(self):
         print("Taking a screenshot")
-        board = pcbnew.GetBoard()
-        board_path=board.GetFileName()
+        self.board = pcbnew.GetBoard()
+        board_path=self.board.GetFileName()
         board_filename=os.path.basename(board_path)
         board_filename_noex=os.path.splitext(board_filename)[0]
         project_folder=os.path.dirname(board_path)
@@ -82,7 +90,7 @@ class SimplePlugin(pcbnew.ActionPlugin):
 
         timelapse_files=os.listdir(timelapse_folder_path)
         timelapse_number=extract_biggest_number(timelapse_files)
-        pc = pcbnew.PLOT_CONTROLLER(board)
+        pc = pcbnew.PLOT_CONTROLLER(self.board)
         po = pc.GetPlotOptions()
         po.SetOutputDirectory(timelapse_folder_path)
         po.SetPlotFrameRef(False)
@@ -131,5 +139,5 @@ class SimplePlugin(pcbnew.ActionPlugin):
     def Run(self):
         rt = RepeatedTimer(1, self.screenshot)
 
-
+print("Registered to pcbnew") 
 SimplePlugin().register() # Instantiate and register to Pcbnew
