@@ -6,7 +6,6 @@ import sys
 from timer import RepeatedTimer
 from svg_processor import SvgProcessor
 import sched, time
-sys.stdout = open('logfile','w')
 capture_interval=10
 
 layers = [
