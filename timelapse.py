@@ -78,6 +78,13 @@ class SimplePlugin(pcbnew.ActionPlugin):
         print("Taking a screenshot")
         self.board = pcbnew.GetBoard()
         board_path=self.board.GetFileName()
+
+        # There doesn't seem to be a clean way to detect when KiCad is shutting down.
+        # Check for an empty board path and return False to signal that the timer should not restart.
+        if board_path == "":
+            print("Shutting down")
+            return False
+
         board_filename=os.path.basename(board_path)
         board_filename_noex=os.path.splitext(board_filename)[0]
         project_folder=os.path.dirname(board_path)
@@ -135,9 +142,11 @@ class SimplePlugin(pcbnew.ActionPlugin):
             os.remove(processed_svg_file)
         output_processor.write(final_svg)
 
+        return True
+
 
     def Run(self):
-        rt = RepeatedTimer(1, self.screenshot)
+        self.rt = RepeatedTimer(capture_interval, self.screenshot)
 
 print("Registered to pcbnew") 
 SimplePlugin().register() # Instantiate and register to Pcbnew
