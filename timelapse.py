@@ -56,7 +56,7 @@ def static_var(varname, value):
 
 def extract_biggest_number(files):
     numbers=[]
-    regex = re.compile(r'\d+')
+    regex = re.compile(r'(\d+)\.svg$')
     for sFile in files:
         print("found file:"+sFile)
         extracted_nums=regex.findall(sFile)
