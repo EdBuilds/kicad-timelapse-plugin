@@ -56,13 +56,20 @@ class SvgProcessor(object):
             wrapper.setAttribute(k,v)
 
         for child in parent.getElementsByTagName('g'):
-            parent.removeChild(child)
-            wrapper.appendChild(child)
+            # Kicad generates an empty <g></g> tag sometimes which is problematic to remove.
+            try:
+                parent.removeChild(child)
+                wrapper.appendChild(child)
+            except xml.dom.NotFoundErr:
+                pass
 
         parent.appendChild(wrapper)
 
     @staticmethod
     def _apply_transform(node, values):
+        if 'style' not in node.attributes.keys():
+            return
+
         original_style = node.attributes['style'].value
         for (k,v) in values.items():
             escaped_key = re.escape(k)
